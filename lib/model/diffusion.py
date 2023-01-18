@@ -78,8 +78,8 @@ class GaussianDiffusion(nn.Module):
     ):
         super().__init__()
         self.channels = 1
-        resolution = [4]
-        self.image_size = (1,5000)
+        resolution = [2,4,8]
+        self.image_size = (1,512*512)
 
         self.model = UNetModel(self.image_size,self.channels,self.channels,self.channels,3,attention_resolutions=resolution)
         self.objective = objective
@@ -353,7 +353,7 @@ class GaussianDiffusion(nn.Module):
         loss = loss * extract(self.p2_loss_weight, t, loss.shape)
         return loss.mean()
 
-    def forward(self, img, cond = None, *args, **kwargs):
+    def forward(self, img, cond, *args, **kwargs):
         
         img = torch.unsqueeze(img,1)
         cond = torch.unsqueeze(cond,1)
