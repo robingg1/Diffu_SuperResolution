@@ -51,6 +51,7 @@ class HGPIFuMRNet(BasePIFuNet):
         self.im_feat_list = []
         self.preds_interm = None
         self.preds_low = None
+        self.feat = None
         self.w = None
         self.gamma = None
 
@@ -143,6 +144,7 @@ class HGPIFuMRNet(BasePIFuNet):
         ws = []
         preds = []
         preds_interm = []
+        feats = []
         preds_low = []
         gammas = []
         newlabels = []
@@ -170,17 +172,22 @@ class HGPIFuMRNet(BasePIFuNet):
                 z_feat = z_feat.detach()
                         
             intermediate_preds_list = []
+            inter_feats_list = []
             for j, im_feat in enumerate(self.im_feat_list):
                 point_local_feat_list = [self.index(im_feat.view(-1,B,*im_feat.size()[1:])[:,i], xy), z_feat]
                 point_local_feat = torch.cat(point_local_feat_list, 1)
                 pred = self.mlp(point_local_feat)[0]
                 pred = in_bb * pred
                 intermediate_preds_list.append(pred)
+                inter_feats_list.append(point_local_feat)
 
             preds_interm.append(torch.stack(intermediate_preds_list,0))
             preds.append(intermediate_preds_list[-1])
+            feats.append(inter_feats_list[-1])
 
         self.preds = torch.cat(preds,0)
+        self.feat = torch.cat(feats,0)
+        print(self.feat.shape)
         self.preds_interm = torch.cat(preds_interm, 1) # first dim is for intermediate predictions
         self.preds_low = torch.cat(preds_low, 1) # first dim is for intermediate predictions
         

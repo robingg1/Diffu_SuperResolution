@@ -9,7 +9,7 @@ import cv2
 import time
 import math
 import random
-import pyexr
+
 import argparse
 from tqdm import tqdm
 
@@ -258,7 +258,7 @@ def render_prt_ortho(out_path, folder_name, subject_name, shs, rndr, rndr_uv, im
                     cv2.imwrite(os.path.join(out_path, 'UV_MASK', subject_name, '00.png'),255.0*uv_mask)
 
                     data = {'default': uv_pos[:,:,:3]} # default is a reserved name
-                    pyexr.write(os.path.join(out_path, 'UV_POS', subject_name, '00.exr'), data) 
+                    #pyexr.write(os.path.join(out_path, 'UV_POS', subject_name, '00.exr'), data) 
 
                     uv_nml = rndr_uv.get_color(2)
                     uv_nml = cv2.cvtColor(uv_nml, cv2.COLOR_RGBA2BGR)

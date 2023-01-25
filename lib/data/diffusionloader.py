@@ -8,28 +8,26 @@ import cv2
 import torch
 
 class TrainDatasetD(Dataset):
-    def __init__(self, input_path, phase='train'):
+    def __init__(self, input_path, phase='train',device = 'cpu'):
         self.input_path = input_path
         self.bodies = os.listdir(input_path)
-        self.point_offset = 'point'
+        self.point_offset = 'feat'
         self.sdf = 'sdf'
-        self.points_person = 50
+        self.points_person = 18
+        self.device = device
 
 
     def __len__(self):
         return len(self.bodies)*self.points_person
 
     def get_item(self,index):
-        body_name = index//50
-        point_num = index%50
-        print(index, body_name,point_num)
+        body_name = index//self.points_person
+        point_num = index%self.points_person
         points_corrad = np.load(os.path.join(self.input_path, self.bodies[body_name] ,self.point_offset+'.npy'))
         sdfs = np.load(os.path.join(self.input_path, self.bodies[body_name], self.sdf+'.npy'))
-        print(sdfs.shape)
         
-        point_tensor = torch.FloatTensor(np.array(points_corrad[point_num]))
-        sdf_tensor = torch.FloatTensor(np.array(sdfs[point_num]))
-        print(point_tensor.shape)
+        point_tensor = torch.FloatTensor(np.array(points_corrad[point_num])).to(self.device)
+        sdf_tensor = torch.FloatTensor(np.array(sdfs[point_num])).to(self.device)
         return point_tensor, sdf_tensor
 
 

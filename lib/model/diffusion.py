@@ -1,4 +1,5 @@
 from .unet import UNetModel
+from .linear_attention import OneDUnet
 import math
 import copy
 from pathlib import Path
@@ -58,7 +59,7 @@ def default(val, d):
     return d() if callable(d) else d
 
 def linear_beta_schedule(timesteps):
-    scale = 300 / timesteps
+    scale = 1000 / timesteps
     beta_start = scale * 0.0001
     beta_end = scale * 0.02
     return torch.linspace(beta_start, beta_end, timesteps, dtype = torch.float64)
@@ -67,10 +68,10 @@ ModelPrediction = namedtuple('ModelPrediction', ['pred_noise', 'pred_x_start'])
 class GaussianDiffusion(nn.Module):
     def __init__(
         self,
-        timesteps = 200,
+        timesteps = 1000,
         sampling_timesteps = None,
         loss_type = 'l1',
-        objective = 'pred_noise',
+        objective = 'pred_x0',
         beta_schedule = 'linear',
         p2_loss_weight_gamma = 0., # p2 loss weight, from https://arxiv.org/abs/2204.00227 - 0 is equivalent to weight of 1 across time - 1. is recommended
         p2_loss_weight_k = 1,
@@ -81,7 +82,7 @@ class GaussianDiffusion(nn.Module):
         resolution = [2,4,8]
         self.image_size = (1,512*512)
 
-        self.model = UNetModel(self.image_size,self.channels,self.channels,self.channels,3,attention_resolutions=resolution)
+        self.model = OneDUnet(xt_dim = 8000, time_dim = None, cond_dim = 8000, num_layers = 1, max_steps = 1000)
         self.objective = objective
         
        
@@ -179,27 +180,27 @@ class GaussianDiffusion(nn.Module):
 
     def model_predictions(self, x, t, x_self_cond = None, clip_x_start = True):
         model_output = self.model(x, t, x_self_cond)
-        maybe_clip = partial(torch.clamp, min = 0., max = 1.) if clip_x_start else identity
+        # maybe_clip = partial(torch.clamp, min = 0., max = 1.) if clip_x_start else identity
 
         if self.objective == 'pred_noise':
             pred_noise = model_output
             x_start = self.predict_start_from_noise(x, t, pred_noise)
-            x_start = maybe_clip(x_start)
+            # x_start = maybe_clip(x_start)
 
         elif self.objective == 'pred_x0':
             x_start = model_output
-            x_start = maybe_clip(x_start)
+            # x_start = maybe_clip(x_start)
             pred_noise = self.predict_noise_from_start(x, t, x_start)
 
         elif self.objective == 'pred_v':
             v = model_output
             x_start = self.predict_start_from_v(x, t, v)
-            x_start = maybe_clip(x_start)
+            # x_start = maybe_clip(x_start)
             pred_noise = self.predict_noise_from_start(x, t, x_start)
 
         return ModelPrediction(pred_noise, x_start)
 
-    def p_mean_variance(self, x, t, x_self_cond = None, clip_denoised = True):
+    def p_mean_variance(self, x, t, x_self_cond = None, clip_denoised = False):
         preds = self.model_predictions(x, t, x_self_cond)
         x_start = preds.pred_x_start
 
@@ -295,7 +296,7 @@ class GaussianDiffusion(nn.Module):
 
     def q_sample(self, x_start, t, noise=None):
         
-        noise = default(noise, lambda: torch.randn_like(x_start))
+        #noise = default(noise, lambda: torch.randn_like(x_start))
 
         return (
             extract(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
@@ -311,9 +312,9 @@ class GaussianDiffusion(nn.Module):
         else:
             raise ValueError(f'invalid loss type {self.loss_type}')
 
-    def p_losses(self, x_start, t, cond, noise = None):
-        b, c, h, w = x_start.shape
-        noise = default(noise, lambda: torch.randn_like(x_start))
+    def p_losses(self, x_start, t, cond, show = False, noise = None):
+        # b, c, h, w = x_start.shape
+        noise = torch.randn_like(x_start)
 
         # noise sample
 
@@ -343,7 +344,10 @@ class GaussianDiffusion(nn.Module):
             target = v
         else:
             raise ValueError(f'unknown objective {self.objective}')
-        print(len(target!=0))
+        if show:
+            print(model_out)
+            print('!!!!!!!!!!!!!!')
+            print(target)
         
 
 
@@ -353,10 +357,10 @@ class GaussianDiffusion(nn.Module):
         loss = loss * extract(self.p2_loss_weight, t, loss.shape)
         return loss.mean()
 
-    def forward(self, img, cond, *args, **kwargs):
+    def forward(self, img, cond, show = False, *args, **kwargs):
         
         img = torch.unsqueeze(img,1)
-        cond = torch.unsqueeze(cond,1)
+        cond = torch.squeeze(cond,1)
         # b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
        
         # assert h == img_size and w == img_size, f'height and width of image must be {img_size}'
@@ -364,4 +368,4 @@ class GaussianDiffusion(nn.Module):
         
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
         
-        return self.p_losses(img, t, cond,  *args, **kwargs)
+        return self.p_losses(img, t, cond, show, *args, **kwargs)

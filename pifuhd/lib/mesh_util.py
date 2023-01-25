@@ -64,15 +64,16 @@ def reconstruction(net, cuda, calib_tensor,
         samples = torch.from_numpy(points).to(device=cuda).float()
         
         net.query(samples, calib_tensor)
-        pred = net.get_preds()[0][0]
+        pred,feat = net.get_preds()
+        pred = pred[0][0]
 
-        return pred.detach().cpu().numpy()
+        return pred.detach().cpu().numpy(),feat.detach().cpu().numpy()
 
     # Then we evaluate the grid
-    if not use_octree:
-        sdf = eval_grid_octree(coords, eval_func, num_samples=num_samples)
-    else:
-        sdf = eval_grid(coords, eval_func, num_samples=num_samples, name=name)
+    # if not use_octree:
+    #     sdf = eval_grid_octree(coords, eval_func, num_samples=num_samples)
+    # else:
+    sdf = eval_grid(coords, eval_func, num_samples=num_samples, name=name)
 
     print(sdf.shape,'the shape for implicit')
 

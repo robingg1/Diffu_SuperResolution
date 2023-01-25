@@ -51,20 +51,30 @@ def create_grid(resX, resY, resZ, b_min=np.array([-1, -1, -1]), b_max=np.array([
     return coords, coords_matrix
 
 
-def batch_eval(points, eval_func, num_samples=512 * 512 * 512):
+def batch_eval(points, eval_func, name, num_samples=512 * 512 * 512):
     num_pts = points.shape[1]
     sdf = np.zeros(num_pts)
+    rand_num = 50
 
     num_batches = num_pts // num_samples
+    save_feat = []
+    save_sdfs = []
+    rands = np.random.randint(0,num_batches-2,size=rand_num)
     for i in range(num_batches):
-        sdf[i * num_samples:i * num_samples + num_samples] = eval_func(
+        sdf[i * num_samples:i * num_samples + num_samples],feat = eval_func(
             points[:, i * num_samples:i * num_samples + num_samples])
-        
+        if i in rands:
+            print('yesssssssss')
+            save_feat.append(feat)
+            save_sdfs.append(sdf[i * num_samples:i * num_samples + num_samples])
+            
     if num_pts % num_samples:
-        sdf[num_batches * num_samples:] = eval_func(points[:, num_batches * num_samples:])
+        sdf[num_batches * num_samples:],feat = eval_func(points[:, num_batches * num_samples:])
+    save_feat = np.stack(save_feat)
+    save_sdfs = np.stack(save_sdfs)
 
 
-    return sdf
+    return sdf,save_feat,save_sdfs
 
 def batch_eval_tensor(points, eval_func, num_samples=512 * 512 * 512):
     num_pts = points.size(1)
@@ -83,20 +93,10 @@ def batch_eval_tensor(points, eval_func, num_samples=512 * 512 * 512):
 def eval_grid(coords, eval_func, num_samples=512 * 512 * 512, name = None):
     resolution = coords.shape[1:4]
     coords = coords.reshape([3, -1])
-    sdf = batch_eval(coords, eval_func, num_samples=num_samples)
-    random = np.random.randint(0,510,size=50)
-    point = []
-    sdfs = []
-    for i in range(50):
-        print(111)
-        point.append( coords[ :,512*512*random[i]:512*512*random[i]+1 ] )
-        print(222)
-        sdfs.append(sdf[512*512*random[i]:512*512*random[i]+1])
-    point = np.stack(point)
-    sdfs = np.stack(sdfs)
-    print(point.shape, '@@@@@@@@@@')
-    np.save(point,f'recon/{name}/point.pth')
-    np.save(sdf,f'recon/{name}/sdf.pth')
+    sdf,save_feat,save_sdfs = batch_eval(coords, eval_func, name, num_samples=num_samples)
+    print(save_feat.shape, save_sdfs.shape, '@@@@@@@@@@')
+    np.save(save_feat,f'recon/{name}/feat.pth')
+    np.save(save_sdfs,f'recon/{name}/sdf.pth')
     
     return sdf.reshape(resolution)
 

@@ -25,9 +25,11 @@ class BasePIFuNet(nn.Module):
         self.projection = orthogonal if projection_mode == 'orthogonal' else perspective
 
         self.preds = None
+        self.feat = None
         self.labels = None
         self.nmls = None
         self.labels_nml = None
+        self.feat = None
         self.preds_surface = None # with normal loss only
 
     def forward(self, points, images, calibs, transforms=None):
@@ -87,7 +89,7 @@ class BasePIFuNet(nn.Module):
         return:
             [B, C, N] prediction
         '''
-        return self.preds
+        return self.preds,self.feat
 
     def get_error(self, gamma=None):
         '''

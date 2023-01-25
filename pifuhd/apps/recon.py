@@ -201,7 +201,7 @@ def recon(opt, use_rect=False):
         set_eval()
 
         print('generate mesh (test) ...')
-        for i in tqdm(range(0,1)):
+        for i in tqdm(range(0,10)):
             if i >= len(test_dataset):
                 break
             
